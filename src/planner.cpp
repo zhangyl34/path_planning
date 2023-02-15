@@ -10,6 +10,9 @@ Planner::Planner() {
     pc_published = false;
     initializeOccupancyMap();
 
+    // 发布起始点
+    pubStart = n.advertise<geometry_msgs::PoseStamped>("/move_base_simple/start", 1);
+
     // rviz 交互
     subGoal = n.subscribe("/move_base_simple/goal", 1, &Planner::setGoal, this);  // 监听终点
     subStart = n.subscribe("/initialpose", 1, &Planner::setStart, this);          // 监听起点
@@ -37,7 +40,7 @@ void Planner::setMap() {
 
     pcl::PLYReader reader;
     pcl::PointCloud<PointType>::Ptr laserCloudIn(new pcl::PointCloud<PointType>());
-    reader.read(std::string(std::string(ROOT_DIR) + "PCD/") + "yinshe_map1.ply", *laserCloudIn);
+    reader.read(std::string(std::string(ROOT_DIR) + "PCD/") + "yinshe_map2.ply", *laserCloudIn);
 
     // 点云降采样
     pcl::PointCloud<PointType>::Ptr laserCloudInDS(new pcl::PointCloud<PointType>());
@@ -118,12 +121,18 @@ void Planner::setStart(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr&
     float x = initial->pose.pose.position.x / Constants::cellSize;  // 单位：格
     float y = initial->pose.pose.position.y / Constants::cellSize;  // 单位：格
     float t = tf::getYaw(initial->pose.pose.orientation);
+    geometry_msgs::PoseStamped startN;
+    startN.pose.position = initial->pose.pose.position;
+    startN.pose.orientation = initial->pose.pose.orientation;
+    startN.header.frame_id = "map";
+    startN.header.stamp = ros::Time::now();
     std::cout << "I am seeing a new start x:" << x << " y:" << y << " t:" << Helper::toDeg(t) << std::endl;
 
     if (occupancyMap2D.info.height >= y && y >= 0 && occupancyMap2D.info.width >= x && x >= 0) {
         validStart = true;
         start = *initial;
         plan();
+        pubStart.publish(startN);
     }
     else {
         std::cout << "invalid start x:" << x << " y:" << y << " t:" << Helper::toDeg(t) << std::endl;
@@ -150,61 +159,62 @@ void Planner::setGoal(const geometry_msgs::PoseStamped::ConstPtr& end) {
 void Planner::plan() {
 
     // if a start as well as goal are defined go ahead and plan
-    if (validStart && validGoal) {
-        std::cout << "start planning..." << std::endl;
-        // LISTS ALLOWCATED ROW MAJOR ORDER
-        int width = occupancyMap2D.info.width;    // 400
-        int height = occupancyMap2D.info.height;  // 400
-        int depth = Constants::headings;          // 72
-        int length = width * height * depth;      // 160000x72
-        // define list pointers and initialize lists
-        Node3D* nodes3D = new Node3D[length]();
-        Node2D* nodes2D = new Node2D[width * height]();
-
-        // retrieving goal position
-        float x = goal.pose.position.x / Constants::cellSize;  // 单位：格
-        float y = goal.pose.position.y / Constants::cellSize;  // 单位：格
-        float t = tf::getYaw(goal.pose.orientation);
-        // set theta to a value (0,2PI]
-        t = Helper::normalizeHeadingRad(t);
-        const Node3D nGoal(x, y, t, 0, 0, nullptr);
-
-        // retrieving start position
-        x = start.pose.pose.position.x / Constants::cellSize;  // 单位：格
-        y = start.pose.pose.position.y / Constants::cellSize;  // 单位：格
-        t = tf::getYaw(start.pose.pose.orientation);
-        // set theta to a value (0,2PI]
-        t = Helper::normalizeHeadingRad(t);
-        Node3D nStart(x, y, t, 0, 0, nullptr);
-
-        // CLEAR THE PATH
-        path.clear();
-        smoothedPath.clear();
-
-        // 核心步骤：
-        // 1) 调用 hybridAStar() 函数获取一条路径
-        Node3D* nSolution = Algorithm::hybridAStar(nStart, nGoal, nodes3D, nodes2D, width, height, configurationSpace);
-        smoother.tracePath(nSolution);
-        path.updatePath(smoother.getPath());
-        // 2) 迭代优化，路径平滑
-        smoother.smoothPath(voronoiDiagram);
-        smoothedPath.updatePath(smoother.getPath());
-
-        std::cout << "finish searching..." << std::endl;
-
-        // PUBLISH THE RESULTS OF THE SEARCH
-        path.publishPath();
-        path.publishPathNodes();
-        path.publishPathVehicles();
-        smoothedPath.publishPath();
-        smoothedPath.publishPathNodes();
-        smoothedPath.publishPathVehicles();
-
-        delete [] nodes3D;
-        delete [] nodes2D;
-
-    }
-    else {
+    if (!validStart || !validGoal) {
         std::cout << "missing goal or start" << std::endl;
+        return;
     }
+
+    std::cout << "start planning..." << std::endl;
+    // LISTS ALLOWCATED ROW MAJOR ORDER
+    int width = occupancyMap2D.info.width;    // 400
+    int height = occupancyMap2D.info.height;  // 400
+    int depth = Constants::headings;          // 72
+    int length = width * height * depth;      // 160000x72
+    // define list pointers and initialize lists
+    Node3D* nodes3D = new Node3D[length]();
+    Node2D* nodes2D = new Node2D[width * height]();
+
+    // 交换 start 和 goal 的位姿。
+    // 我们的场景需要在 goal 附近进行微调，从 goal 向 start 搜索更容易。
+    // retrieving start position
+    float x = goal.pose.position.x / Constants::cellSize;  // 单位：格
+    float y = goal.pose.position.y / Constants::cellSize;  // 单位：格
+    float t = tf::getYaw(goal.pose.orientation);
+    // set theta to a value (0,2PI]
+    t = Helper::normalizeHeadingRad(t + M_PI);
+    Node3D nStart(x, y, t, 0, 0, nullptr);
+    // retrieving goal position
+    x = start.pose.pose.position.x / Constants::cellSize;  // 单位：格
+    y = start.pose.pose.position.y / Constants::cellSize;  // 单位：格
+    t = tf::getYaw(start.pose.pose.orientation);
+    // set theta to a value (0,2PI]
+    t = Helper::normalizeHeadingRad(t + M_PI);
+    const Node3D nGoal(x, y, t, 0, 0, nullptr);
+
+    // CLEAR THE PATH
+    path.clear();
+    smoothedPath.clear();
+
+    // 核心步骤：
+    // 1) 调用 hybridAStar() 函数获取一条路径
+    Node3D* nSolution = Algorithm::hybridAStar(nStart, nGoal, nodes3D, nodes2D, width, height, configurationSpace);
+    smoother.tracePath(nSolution);
+    path.updatePath(smoother.getPath());
+    // 2) 迭代优化，路径平滑
+    smoother.smoothPath(voronoiDiagram);
+    smoothedPath.updatePath(smoother.getPath());
+
+    std::cout << "finish searching..." << std::endl;
+
+    // PUBLISH THE RESULTS OF THE SEARCH
+    path.publishPath();
+    path.publishPathNodes();
+    path.publishPathVehicles();
+    smoothedPath.publishPath();
+    smoothedPath.publishPathNodes();
+    smoothedPath.publishPathVehicles();
+
+    delete [] nodes3D;
+    delete [] nodes2D;
+
 }

@@ -13,7 +13,7 @@ inline int sign(double x) {
 }
 
 /**
- * 输入的 lookup[] 大小为 72*100 
+ * 输入的 lookup[] 大小为 72*1
 **/
 inline void collisionLookup(Constants::config* lookup) {
 
@@ -58,11 +58,11 @@ inline void collisionLookup(Constants::config* lookup) {
     int hcross2 = 0;
 
     // cell 的分辨率
-    const int positionResolution = Constants::positionResolution;  // 5
-    const int positions = Constants::positions;  // 25
-    // cell 内的 25 个 points
+    const int positionResolution = Constants::positionResolution;  // 1
+    const int positions = Constants::positions;  // 1x1
+    // cell 内的 points
     point points[positions];
-    // 计算出 25 个 points 的真实偏移量 [0-1]
+    // 计算出 points 的真实偏移量 [0-1]
     for (int i = 0; i < positionResolution; ++i) {
         for (int j = 0; j < positionResolution; ++j) {
             points[positionResolution * i + j].x = 1.f / positionResolution * j;
@@ -70,17 +70,17 @@ inline void collisionLookup(Constants::config* lookup) {
         }
     }
 
-    for (int q = 0; q < positions; ++q) {  // 100 个 positions
+    for (int q = 0; q < positions; ++q) {  // 1x1
         // set the starting angle to zero;
         theta = 0;
 
         // set points of rectangle
-        c.x = (double)size / 2 + points[q].x;
-        c.y = (double)size / 2 + points[q].y;
+        c.x = (double)size / 2 + points[q].x;  // 31/2+0
+        c.y = (double)size / 2 + points[q].y;  // 31/2+0
 
         // 左下
-        p[0].x = c.x - Constants::length / 2 / cSize;
-        p[0].y = c.y - Constants::width / 2 / cSize;
+        p[0].x = c.x - Constants::length / 2 / cSize;  // 15.5-13.5
+        p[0].y = c.y - Constants::width / 2 / cSize;   // 15.5-7.6
         // 左上
         p[1].x = c.x - Constants::length / 2 / cSize;
         p[1].y = c.y + Constants::width / 2 / cSize;
@@ -94,7 +94,7 @@ inline void collisionLookup(Constants::config* lookup) {
         for (int o = 0; o < Constants::headings; ++o) {  // 72 个 headings
 
             // 初始化为 cSpace 为 false
-            for (int i = 0; i < size; ++i) {  // bbox size
+            for (int i = 0; i < size; ++i) {  // bbox size: 31x31
                 for (int j = 0; j < size; ++j) {
                     cSpace[i * size + j] = false;
                 }
@@ -133,32 +133,35 @@ inline void collisionLookup(Constants::config* lookup) {
                 stepY = sign(t.y);  // +-1
 
                 // 归一化
-                if (t.x != 0) {
+                if (fabs(t.x) > 0.000001) {
                     tDeltaX = 1.f / std::abs(t.x);
+                    if (stepX > 0) {
+                        tMaxX = tDeltaX * (1 - (start.x - (int)start.x));
+                    }
+                    else {
+                        tMaxX = tDeltaX * (start.x - (int)start.x);
+                    }
                 }
                 else {
                     tDeltaX = 1000;
+                    tMaxX = 2.0;
                 }
-                if (t.y != 0) {
+                if (fabs(t.y) > 0.000001) {
                     tDeltaY = 1.f / std::abs(t.y);
+                    if (stepY > 0) {
+                        tMaxY = tDeltaY * (1 - (start.y - (int)start.y));
+                    }
+                    else {
+                        tMaxY = tDeltaY * (start.y - (int)start.y);
+                    }
                 }
                 else {
                     tDeltaY = 1000;
-                }
-                if (stepX > 0) {
-                    tMaxX = tDeltaX * (1 - (start.x - (int)start.x));
-                }
-                else {
-                    tMaxX = tDeltaX * (start.x - (int)start.x);
-                }
-                if (stepY > 0) {
-                    tMaxY = tDeltaY * (1 - (start.y - (int)start.y));
-                }
-                else {
-                    tMaxY = tDeltaY * (start.y - (int)start.y);
+                    tMaxY = 2.0;
                 }
 
                 while ((int)end.x != X || (int)end.y != Y) {
+
                     // only increment x if the t length is smaller and the result will be closer to the goal
                     if (tMaxX < tMaxY && std::abs(X + stepX - (int)end.x) < std::abs(X - (int)end.x)) {
                         tMaxX = tMaxX + tDeltaX;  // 加一格

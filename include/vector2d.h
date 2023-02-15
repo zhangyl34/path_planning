@@ -1,3 +1,4 @@
+// smoother.h 需要用到
 #ifndef VECTOR2D
 #define VECTOR2D
 

@@ -1,3 +1,4 @@
+// 为 dynamicvoronoi.h 提供服务
 #ifndef _PRIORITYQUEUE2_H_
 #define _PRIORITYQUEUE2_H_
 

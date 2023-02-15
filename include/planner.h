@@ -5,8 +5,6 @@
 #include <ctime>
 
 #include <ros/ros.h>
-#include <tf/transform_datatypes.h>
-#include <tf/transform_listener.h>
 #include <nav_msgs/OccupancyGrid.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 
@@ -60,21 +58,14 @@ private:
     // 初始化 occupancy map
     void initializeOccupancyMap();
 
-
     // The node handle
     ros::NodeHandle n;
-    // A publisher publishing the start position for RViz
-    // ros::Publisher pubStart;
-    // A subscriber for receiving map updates
-    // ros::Subscriber subMap;
 
-    // A listener that awaits transforms
-    tf::TransformListener listener;
     // The path produced by the hybrid A* algorithm
     Path path;
     // The smoother used for optimizing the path
     Smoother smoother;
-    // The path smoothed and ready for the controller
+    // The path smoothed
     Path smoothedPath = Path(true);
     // The collission detection for testing specific configurations
     CollisionDetection configurationSpace;
@@ -91,6 +82,7 @@ private:
     ros::Subscriber subStart;
     geometry_msgs::PoseWithCovarianceStamped start;
     bool validStart = false;
+    ros::Publisher pubStart;
     // 目标位姿
     ros::Subscriber subGoal;
     geometry_msgs::PoseStamped goal;

@@ -50,7 +50,7 @@ void Path::addNode(const Node3D& node, int i) {
     pathNode.action = 3;
   }
 
-  pathNode.header.frame_id = "path";
+  pathNode.header.frame_id = "map";
   pathNode.header.stamp = ros::Time(0);
   pathNode.id = i;
   pathNode.type = visualization_msgs::Marker::SPHERE;
