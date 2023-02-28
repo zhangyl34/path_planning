@@ -90,7 +90,7 @@ Node3D* Algorithm::hybridAStar(Node3D& start,
             return nPred;
         }
         // 继续搜索
-        // 当前位置靠近 goal时，考虑用 dubinsShot 去命中目标点
+        // 当前位置靠近 goal 时，考虑用 dubinsShot 去命中目标点
         if (Constants::dubinsShot && nPred->isInRange(goal) && nPred->getPrim() < 3) {
             nSucc = dubinsShot(*nPred, goal, configurationSpace);
 
