@@ -4,7 +4,6 @@
 #include <nav_msgs/OccupancyGrid.h>
 
 #include "constants.h"
-#include "lookup.h"
 #include "node2d.h"
 #include "node3d.h"
 
@@ -59,11 +58,7 @@ public:
 private:
     // The occupancy grid
     nav_msgs::OccupancyGrid grid;
-    /**
-     * 用于 3D 碰撞检测
-     * 每个 cell 包含 72*1 个 pose
-    **/
-    Constants::config collisionLookup[Constants::headings * Constants::positions];
+
 };
 }
 #endif // COLLISIONDETECTION_H

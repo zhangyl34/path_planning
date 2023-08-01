@@ -3,10 +3,10 @@ using namespace HybridAStar;
 
 // 检测是否由前进变成倒车
 inline bool isCusp(const std::vector<Node3D>& path, int i) {
-    bool revim2 = path[i - 2].getPrim() > 3 ;
-    bool revim1 = path[i - 1].getPrim() > 3 ;
-    bool revi   = path[i].getPrim() > 3 ;
-    bool revip1 = path[i + 1].getPrim() > 3 ;
+    bool revim2 = path[i - 2].getPrim() > 3;
+    bool revim1 = path[i - 1].getPrim() > 3;
+    bool revi   = path[i].getPrim() > 3;
+    bool revip1 = path[i + 1].getPrim() > 3;
 
     return (revim2 != revim1 || revim1 != revi || revi != revip1);
 }

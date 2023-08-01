@@ -35,7 +35,7 @@ Node3D* Algorithm::hybridAStar(Node3D& start,
     int iPred, iSucc;
     float newG;
     // Number of possible directions, 3 for forward driving and an additional 3 for reversing
-    int dir = Constants::reverse ? 6 : 3;
+    int dir = 6;
     // Number of iterations the algorithm has run for stopping based on Constants::iterations
     int iterations = 0;
 
@@ -49,7 +49,7 @@ Node3D* Algorithm::hybridAStar(Node3D& start,
     start.open();
     // push on priority queue aka open list
     O.push(&start);
-    // 计算索引
+    // 获取索引
     iPred = start.setIdx(width, height);
     nodes3D[iPred] = start;
 
@@ -62,7 +62,7 @@ Node3D* Algorithm::hybridAStar(Node3D& start,
 
         // pop node with lowest cost from priority queue
         nPred = O.top();
-        // set index
+        // 获取索引
         iPred = nPred->setIdx(width, height);
         iterations++;
 
@@ -90,7 +90,7 @@ Node3D* Algorithm::hybridAStar(Node3D& start,
             return nPred;
         }
         // 继续搜索
-        // 当前位置靠近 goal 时，考虑用 dubinsShot 去命中目标点
+        // 考虑用 dubinsShot 去命中目标点
         if (Constants::dubinsShot && nPred->isInRange(goal) && nPred->getPrim() < 3) {
             nSucc = dubinsShot(*nPred, goal, configurationSpace);
 
@@ -101,7 +101,7 @@ Node3D* Algorithm::hybridAStar(Node3D& start,
         }
 
         for (int i = 0; i < dir; i++) {
-            // 创建下一个扩展节点，这里有三种可能的方向，如果可以倒车的话是六种方向
+            // 创建下一个扩展节点，这里有六种可能的方向
             nSucc = nPred->createSuccessor(i);
             // set index of the successor
             iSucc = nSucc->setIdx(width, height);
@@ -257,52 +257,24 @@ float aStar(Node2D& start,
 void updateH(Node3D& start, const Node3D& goal, Node2D* nodes2D, int width, int height,
     CollisionDetection& configurationSpace) {
   
-    float dubinsCost = 0;
-    float reedsSheppCost = 0;
     float twoDCost = 0;
     float twoDoffset = 0;
 
-    // 使用 dubins 曲线
-    if (Constants::dubins) {
-        ompl::base::DubinsStateSpace dubinsPath(Constants::r);
-        State* dbStart = (State*)dubinsPath.allocState();
-        State* dbEnd = (State*)dubinsPath.allocState();
-        dbStart->setXY(start.getX(), start.getY());
-        dbStart->setYaw(start.getT());
-        dbEnd->setXY(goal.getX(), goal.getY());
-        dbEnd->setYaw(goal.getT());
-        dubinsCost = dubinsPath.distance(dbStart, dbEnd);
-    }
-    // 或者使用 reedsshepp 曲线
-    if (Constants::reverse && !Constants::dubins) {
-        ompl::base::ReedsSheppStateSpace reedsSheppPath(Constants::r);
-        State* rsStart = (State*)reedsSheppPath.allocState();
-        State* rsEnd = (State*)reedsSheppPath.allocState();
-        rsStart->setXY(start.getX(), start.getY());
-        rsStart->setYaw(start.getT());
-        rsEnd->setXY(goal.getX(), goal.getY());
-        rsEnd->setYaw(goal.getT());
-        reedsSheppCost = reedsSheppPath.distance(rsStart, rsEnd);  // 单位：格
-    }
-
     // 使用 aStar 搜索
-    if (Constants::twoD && !nodes2D[(int)start.getY() * width + (int)start.getX()].isDiscovered()) {
+    if (!nodes2D[(int)start.getY() * width + (int)start.getX()].isDiscovered()) {
         Node2D start2d(start.getX(), start.getY(), 0, 0, nullptr);
         Node2D goal2d(goal.getX(), goal.getY(), 0, 0, nullptr);
         nodes2D[(int)start.getY() * width + (int)start.getX()].setG(
             aStar(goal2d, start2d, nodes2D, width, height, configurationSpace));
     }
     // 计算启发式
-    if (Constants::twoD) {
-        twoDoffset = sqrt(((start.getX() - (long)start.getX()) - (goal.getX() - (long)goal.getX())) *
-                          ((start.getX() - (long)start.getX()) - (goal.getX() - (long)goal.getX())) +
-                          ((start.getY() - (long)start.getY()) - (goal.getY() - (long)goal.getY())) *
-                          ((start.getY() - (long)start.getY()) - (goal.getY() - (long)goal.getY())));
-        twoDCost = nodes2D[(int)start.getY() * width + (int)start.getX()].getG() - twoDoffset;
-    }
-
+    twoDoffset = sqrt(((start.getX() - (long)start.getX()) - (goal.getX() - (long)goal.getX())) *
+                    ((start.getX() - (long)start.getX()) - (goal.getX() - (long)goal.getX())) +
+                    ((start.getY() - (long)start.getY()) - (goal.getY() - (long)goal.getY())) *
+                    ((start.getY() - (long)start.getY()) - (goal.getY() - (long)goal.getY())));
+    twoDCost = nodes2D[(int)start.getY() * width + (int)start.getX()].getG() - twoDoffset;
     // 更新 h
-    start.setH(std::max(twoDCost, std::max(dubinsCost, reedsSheppCost)));
+    start.setH(twoDCost);
     return;
 }
 

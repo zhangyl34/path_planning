@@ -48,7 +48,7 @@ public:
     bool isOpen() const { return o; }
     /// determine whether the node is closed
     bool isClosed() const { return c; }
-    /// determine whether the node is open
+    /// get the predecessor of the node
     const Node3D* getPred() const { return pred; }
 
     // SETTER METHODS

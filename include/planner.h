@@ -35,7 +35,6 @@
 #include "node3d.h"
 #include "path.h"
 #include "smoother.h"
-#include "lookup.h"
 
 namespace HybridAStar {
 

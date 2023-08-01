@@ -1,6 +1,8 @@
 #ifndef SMOOTHER_H
 #define SMOOTHER_H
 
+/* smooth function.*/
+
 #include <cmath>
 #include <vector>
 

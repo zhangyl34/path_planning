@@ -1,6 +1,7 @@
-// 为 bucketedequeue.h 提供服务
 #ifndef _VOROPOINT_H_
 #define _VOROPOINT_H_
+
+/* 为 bucketedequeue.h 提供服务*/
 
 #define INTPOINT IntPoint
 

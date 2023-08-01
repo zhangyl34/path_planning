@@ -71,15 +71,16 @@ void Planner::setMap() {
         double halfMapHeight = (Constants::cellNum * Constants::cellSize) / 2.0;  // 20/2m
         std::fill(occupancyMap2D.data.begin(), occupancyMap2D.data.end(), 0);
 
-        // 点云拓展为球体，半径 0.2m，也可以理解为机器人半径，用于防碰撞
-        int search_num_ob = round(Constants::pcRadius / Constants::cellSize);  // 0.2/0.05=4
+        // collisionMap: 点云拓展为球体，半径 (w/2)/0.05 + 1 cell，也可以理解为机器人半径，用于防碰撞
+        nav_msgs::OccupancyGrid collisionMap = occupancyMap2D;
+        int search_num_ob = ceil(Constants::width/2.0/ Constants::cellSize) + 1;  // (w/2)/0.05 + 1 = 9cell
         for (int i = 0; i < laserCloudFiltered->size(); ++i) {
             int index_x = (laserCloudFiltered->points[i].x + halfMapWidth) / Constants::cellSize;
             int index_y = (laserCloudFiltered->points[i].y + halfMapHeight) / Constants::cellSize;
 
             for (int m = -search_num_ob; m <= search_num_ob; ++m) {
                 for (int n = -search_num_ob; n <= search_num_ob; ++n) {
-                    if (sqrt(float(m*m + n*n)) * Constants::cellSize > Constants::pcRadius) {
+                    if (sqrt(float(m*m + n*n)) > search_num_ob) {
                         continue;
                     }
 
@@ -89,12 +90,19 @@ void Planner::setMap() {
                         continue;
                     }
                     // update the black region, taking into account the robot's size.
-                    int index = y_id * occupancyMap2D.info.width + x_id;
-                    occupancyMap2D.data[index] = 100;
+                    int index = y_id * collisionMap.info.width + x_id;
+                    collisionMap.data[index] = 100;
                 }
             }
+
+            if (index_x < 0 || index_y < 0 || index_x >= Constants::cellNum || index_y >= Constants::cellNum) {
+                continue;
+            }
+            // update the black region, taking into account the robot's size.
+            int index = index_y * occupancyMap2D.info.width + index_x;
+            occupancyMap2D.data[index] = 100;
         }
-        configurationSpace.updateGrid(occupancyMap2D);
+        configurationSpace.updateGrid(collisionMap);
         pubOccupancyMap2.publish(occupancyMap2D);
         pc_published = true;
 
